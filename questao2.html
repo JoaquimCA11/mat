@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Questão 2 - Lata cilíndrica com área mínima</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      max-width: 850px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #f5f8fc;
+      border-radius: 12px;
+      color: #111;
+    }
+    h1 { margin-top: 0; }
+    label { display:inline-block; margin:6px 10px; }
+    input[type=number] { width:130px; padding:6px; border-radius:6px; border:1px solid #ccc; }
+    button { padding:8px 12px; border-radius:8px; border:none; background:#0078ff; color:white; cursor:pointer; }
+    .box { background:white; padding:18px; border-radius:10px; margin-top:18px; box-shadow:0 4px 16px rgba(0,0,0,0.05); }
+    pre { background:#f0f2f5; padding:10px; border-radius:8px; overflow:auto; }
+    .math { font-family:"Courier New", monospace; background:#f9fafc; padding:4px 6px; border-radius:6px; display:inline-block; }
+    .small { color:#333; font-size:0.95em; }
+  </style>
+</head>
+<body>
+  <h1>Questão 2 — Lata Cilíndrica (Área mínima)</h1>
+  <p>Deseja-se projetar uma lata cilíndrica de volume fixo \( V = πr²h \) que utilize a <b>menor quantidade de material</b>, ou seja, a menor área superficial \( A = 2πr² + 2πrh \).</p>
+
+  <div>
+    <label>Volume (V = π×)</label>
+    <input id="V" type="number" value="8192" step="any"> cm³
+    <button onclick="resolver()">Resolver</button>
+  </div>
+
+  <div id="out" class="box"></div>
+
+<script>
+function fmt(n, d=4){
+  if(!Number.isFinite(n)) return n;
+  return parseFloat(n.toFixed(d)).toString();
+}
+
+function resolver(){
+  const V = parseFloat(document.getElementById("V").value);
+  const out = document.getElementById("out");
+  if(V <= 0){ out.innerHTML = "<b>Informe um volume positivo!</b>"; return; }
+
+  let html = `<h2>Resolução passo a passo</h2>`;
+
+  html += `<div class="small"><b>Dados:</b> V = πr²h = ${V}π cm³.<br>`;
+  html += `A = 2πr² + 2πrh → queremos minimizar A.</div>`;
+
+  // expressar h em função de r
+  html += `<h3>1) Expressar h em função de r</h3>`;
+  html += `<div class="math">h = V / (πr²) = ${V}/(πr²)</div>`;
+
+  // Substituir em A
+  html += `<h3>2) Substituir em A:</h3>`;
+  html += `<div class="math">A(r) = 2πr² + 2πr·h = 2πr² + 2πr·(V / (πr²)) = 2πr² + 2V/r</div>`;
+
+  html += `<p>Agora A depende apenas de r.</p>`;
+
+  // derivar A'(r)
+  html += `<h3>3) Derivar A(r) em relação a r:</h3>`;
+  html += `<div class="math">A'(r) = d/dr (2πr² + 2V/r) = 4πr - 2V / r²</div>`;
+
+  // igualar a zero
+  html += `<h3>4) Condição de mínimo: A'(r) = 0</h3>`;
+  html += `<div class="math">4πr - 2V/r² = 0</div>`;
+  html += `<div class="math">⇒ 4πr³ = 2V</div>`;
+  html += `<div class="math">⇒ r³ = V / (2π)</div>`;
+
+  const r = Math.cbrt(V / (2 * Math.PI));
+  const h = V / (Math.PI * r * r);
+
+  html += `<p>Logo:</p>`;
+  html += `<div class="math">r = (V / (2π))^(1/3) = (${V}/(2π))^(1/3) = ${fmt(r)} cm</div>`;
+  html += `<div class="math">h = V / (πr²) = ${V}/(π×${fmt(r)}²) = ${fmt(h)} cm</div>`;
+
+  html += `<h3>5) Verificar se é mínimo</h3>`;
+  html += `<div class="math">A''(r) = d²A/dr² = 4π + 4V/r³</div>`;
+  html += `<div>Como r>0 e V>0 ⇒ A''(r) > 0, portanto é um <b>mínimo</b>.</div>`;
+
+  html += `<h3>6) Conclusão:</h3>`;
+  html += `<div><b>Raio</b> = ${fmt(r)} cm<br><b>Altura</b> = ${fmt(h)} cm</div>`;
+  html += `<p>Observação: o resultado mostra que, para uma lata com menor área, a altura é <b>igual ao diâmetro</b> (h = 2r ≈ ${fmt(2*r)} cm).</p>`;
+
+  out.innerHTML = html;
+}
+
+// executa automaticamente
+resolver();
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Questões de Máximos e Mínimos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef2f7;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1e40af;
+      color: white;
+      padding: 15px 25px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    nav {
+      background: #ffffff;
+      border-bottom: 2px solid #dbe3f3;
+      display: flex;
+      gap: 10px;
+      padding: 10px 20px;
+    }
+    nav button {
+      border: none;
+      padding: 10px 16px;
+      background: #2563eb;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background 0.2s;
+    }
+    nav button:hover {
+      background: #1e3a8a;
+    }
+    #conteudo {
+      padding: 20px;
+      background: #f9fafc;
+      min-height: 85vh;
+      border-radius: 8px;
+      margin: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+
+<header>Resolução de Questões — Máximos e Mínimos</header>
+
+<nav>
+  <button onclick="carregar('questao1.html')">Questão 1</button>
+  <button onclick="carregar('questao2.html')">Questão 2</button>
+  <button onclick="carregar('questao3.html')">Questão 3</button>
+</nav>
+
+<div id="conteudo">
+  <p>Selecione uma das questões acima para visualizar sua resolução detalhada.</p>
+</div>
+
+<script>
+function carregar(pagina) {
+  const conteudo = document.getElementById('conteudo');
+  conteudo.innerHTML = '<p>Carregando...</p>';
+
+  fetch(pagina)
+    .then(resp => {
+      if (!resp.ok) throw new Error("Página não encontrada");
+      return resp.text();
+    })
+    .then(html => {
+      conteudo.innerHTML = html;
+
+      // --- executa os scripts que vieram junto ---
+      const scripts = conteudo.querySelectorAll("script");
+      scripts.forEach(script => {
+        const novo = document.createElement("script");
+        if (script.src) {
+          novo.src = script.src;
+        } else {
+          novo.textContent = script.textContent;
+        }
+        document.body.appendChild(novo);
+      });
+    })
+    .catch(err => {
+      conteudo.innerHTML = `<p style="color:red;">Erro: ${err.message}</p>`;
+    });
+}
+</script>
+
+
+</body>
+</html>

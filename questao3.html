@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Área entre curvas — f(x) e g(x)</title>
+  <style>
+    body{font-family:Arial, Helvetica, sans-serif;max-width:900px;margin:30px auto;padding:18px;background:#f7f9fc;border-radius:10px;}
+    h1{margin-top:0}
+    label{display:inline-block;margin:6px 8px}
+    input[type=number]{width:110px;padding:6px;border-radius:6px;border:1px solid #ccc}
+    button{padding:8px 12px;border-radius:8px;border:none;background:#0078ff;color:#fff;cursor:pointer}
+    .box{background:#fff;padding:14px;border-radius:10px;margin-top:16px;box-shadow:0 6px 18px rgba(10,20,40,0.06)}
+    pre{background:#f3f6fa;padding:10px;border-radius:8px;overflow:auto}
+    .math{font-family: "Courier New", monospace; display:block; background:#fcfeff; padding:8px;border-radius:6px}
+    .small{color:#444;font-size:0.95em}
+  </style>
+</head>
+<body>
+  <h1>Área entre duas parábolas (detalhado)</h1>
+  <p class="small">Defina as duas funções quadráticas <b>f(x) = a₁x² + b₁x + c₁</b> e <b>g(x) = a₂x² + b₂x + c₂</b>. A página calcula a região limitada por elas entre os pontos de interseção e mostra o resultado também em fração.</p>
+
+  <div>
+    <strong>f(x):</strong>
+    <label>a₁ <input id="a1" type="number" value="-1" step="any"></label>
+    <label>b₁ <input id="b1" type="number" value="5" step="any"></label>
+    <label>c₁ <input id="c1" type="number" value="0" step="any"></label>
+  </div>
+
+  <div style="margin-top:6px;">
+    <strong>g(x):</strong>
+    <label>a₂ <input id="a2" type="number" value="1" step="any"></label>
+    <label>b₂ <input id="b2" type="number" value="-11" step="any"></label>
+    <label>c₂ <input id="c2" type="number" value="-1" step="any"></label>
+  </div>
+
+  <div style="margin-top:10px;">
+    <button onclick="resolver()">Calcular área (detalhado)</button>
+  </div>
+
+  <div id="out" class="box"></div>
+
+<script>
+function fmt(n, d=6){
+  if(!Number.isFinite(n)) return String(n);
+  return parseFloat(n.toFixed(d)).toString();
+}
+
+/* converte decimal em fração simples, se possível */
+function decimalParaFracao(num, tol = 1e-8) {
+  if (!Number.isFinite(num)) return String(num);
+  let s = Math.sign(num);
+  num = Math.abs(num);
+  if (Math.abs(num - Math.round(num)) < tol) return (s<0?"-":"") + Math.round(num);
+  let denom = 1, frac = num;
+  while (Math.abs(frac - Math.round(frac)) > tol && denom < 10000) {
+    denom++;
+    frac = num * denom;
+  }
+  if (Math.abs(frac - Math.round(frac)) < tol) {
+    let nume = Math.round(frac);
+    const g = mdc(nume, denom);
+    return (s<0?"-":"") + (nume/g) + "/" + (denom/g);
+  }
+  return fmt(s*num);
+}
+function mdc(a,b){return b?mdc(b,a%b):Math.abs(a);}
+
+function resolver(){
+  const a1 = parseFloat(document.getElementById('a1').value);
+  const b1 = parseFloat(document.getElementById('b1').value);
+  const c1 = parseFloat(document.getElementById('c1').value);
+  const a2 = parseFloat(document.getElementById('a2').value);
+  const b2 = parseFloat(document.getElementById('b2').value);
+  const c2 = parseFloat(document.getElementById('c2').value);
+  const out = document.getElementById('out');
+  out.innerHTML = "";
+
+  const A = a1 - a2;
+  const B = b1 - b2;
+  const C = c1 - c2;
+
+  let html = `<h2>Passo a passo</h2>`;
+  html += `<div class="small"><b>Funções:</b><br>f(x) = ${a1}x² + ${b1}x + ${c1}<br>g(x) = ${a2}x² + ${b2}x + ${c2}</div>`;
+
+  html += `<div class="math">h(x) = f(x) - g(x) = (${a1}-${a2})x² + (${b1}-${b2})x + (${c1}-${c2}) = ${fmt(A)}x² + ${fmt(B)}x + ${fmt(C)}</div>`;
+
+  html += `<h3>1) Pontos de interseção</h3>`;
+  html += `<div class="math">${fmt(A)}x² + ${fmt(B)}x + ${fmt(C)} = 0</div>`;
+  const delta = B*B - 4*A*C;
+  const sqrtD = Math.sqrt(delta);
+  const x1 = (-B - sqrtD)/(2*A);
+  const x2 = (-B + sqrtD)/(2*A);
+
+  html += `<div class="math">Δ = ${fmt(delta)} ⇒ x₁ = ${fmt(x1)}, x₂ = ${fmt(x2)}</div>`;
+
+  const xm = (x1 + x2)/2;
+  const hMid = A*xm*xm + B*xm + C;
+  html += `<h3>2) Ordem das funções</h3>`;
+  html += `<div class="math">h(${fmt(xm)}) = ${fmt(hMid)} ⇒ ${hMid>0?'f(x)>g(x)':'g(x)>f(x)'}</div>`;
+
+  html += `<h3>3) Integral e área</h3>`;
+  html += `<div class="math">∫h(x)dx = (A/3)x³ + (B/2)x² + Cx</div>`;
+
+  const F = x => (A/3)*x**3 + (B/2)*x**2 + C*x;
+  const integral = F(x2) - F(x1);
+  const area = Math.abs(integral);
+
+  html += `<div class="math">F(x₂)-F(x₁) = ${fmt(F(x2))} - ${fmt(F(x1))} = ${fmt(integral)}</div>`;
+  html += `<p><b>Área</b> = |${fmt(integral)}| = <b>${fmt(area)}</b> ≈ ${decimalParaFracao(area)}</p>`;
+
+  html += `<h3>Resumo</h3><ul>`;
+  html += `<li>x₁ = ${fmt(x1)}, x₂ = ${fmt(x2)}</li>`;
+  html += `<li>Área entre curvas = ${fmt(area)} (${decimalParaFracao(area)})</li>`;
+  html += `</ul>`;
+
+  out.innerHTML = html;
+}
+</script>
+</body>
+</html>

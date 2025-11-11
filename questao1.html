@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Máximos e Mínimos - Resolução Detalhada (Cúbica)</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      max-width: 900px;
+      margin: 28px auto;
+      padding: 22px;
+      background: #f6f8fb;
+      color: #111;
+      border-radius: 12px;
+    }
+    h1 { margin-top: 0; }
+    label { display:inline-block; margin:6px 10px; }
+    input[type=number] { width:110px; padding:6px; border-radius:6px; border:1px solid #cfcfcf; }
+    button { padding:8px 12px; border-radius:8px; border:none; background:#246ef2; color:white; cursor:pointer; }
+    .box { background:white; padding:18px; border-radius:10px; margin-top:16px; box-shadow:0 6px 20px rgba(20,30,60,0.06); }
+    pre { background:#f0f2f5; padding:10px; border-radius:8px; overflow:auto; }
+    .step { margin-bottom:12px; }
+    .math { font-family: "Courier New", monospace; background:#fcfdff; padding:6px 8px; border-radius:6px; display:inline-block; }
+    .small { color:#444; font-size:0.95em; }
+  </style>
+</head>
+<body>
+  <h1>Máximos e Mínimos — Resolução Detalhada</h1>
+  <p class="small">Insira os coeficientes da cúbica <b>f(x) = a x³ + b x² + c x + d</b> e o intervalo [x₁, x₂]. A saída mostrará um desenvolvimento aceitável para correção por professor.</p>
+
+  <div>
+    <label>a <input id="a" type="number" value="1" step="any"></label>
+    <label>b <input id="b" type="number" value="-3" step="any"></label>
+    <label>c <input id="c" type="number" value="-24" step="any"></label>
+    <label>d <input id="d" type="number" value="90" step="any"></label>
+  </div>
+
+  <div style="margin-top:8px;">
+    <label>x₁ <input id="x1" type="number" value="-10" step="any"></label>
+    <label>x₂ <input id="x2" type="number" value="6" step="any"></label>
+    <button onclick="resolver()">Resolver</button>
+  </div>
+
+  <div id="out" class="box"></div>
+
+<script>
+/* ---------- util ---------- */
+function fmt(n, digits=6){
+  // arredonda e remove zeros à direita
+  if(!Number.isFinite(n)) return String(n);
+  return parseFloat(n.toFixed(digits)).toString();
+}
+function uniqueNumbers(arr, eps=1e-9){
+  const out=[];
+  arr.forEach(v=>{
+    if(!Number.isFinite(v)) return;
+    if(!out.some(u=>Math.abs(u-v)<=eps)) out.push(v);
+  });
+  return out;
+}
+
+/* ---------- funções matemáticas ---------- */
+function f(a,b,c,d,x){
+  return a*x*x*x + b*x*x + c*x + d;
+}
+function df_coefs(a,b,c){
+  // coeficientes da derivada: A x^2 + B x + C
+  return {A: 3*a, B: 2*b, C: c};
+}
+function d2f(a,b,x){
+  return 6*a*x + 2*b;
+}
+
+/* ---------- formatadores de passos ---------- */
+function passo_derivacao(a,b,c,d){
+  const coefs = df_coefs(a,b,c);
+  return [
+    `f(x) = ${a}x³ + ${b}x² + ${c}x + ${d}`,
+    `f'(x) = derivative(f) = 3·${a} x² + 2·${b} x + ${c} = ${coefs.A}x² + ${coefs.B}x + ${coefs.C}`
+  ];
+}
+
+function passo_delta(A,B,C){
+  const delta = B*B - 4*A*C;
+  return {
+    delta,
+    text: [
+      `Equação f'(x)=0 ⇒ ${A}x² + ${B}x + ${C} = 0`,
+      `Δ = B² - 4·A·C = (${B})² - 4·(${A})·(${C}) = ${fmt(B*B)} - ${fmt(4*A*C)} = ${fmt(delta)}`
+    ]
+  };
+}
+
+function passo_raizes(A,B,delta){
+  const sqrtD = delta < 0 ? NaN : Math.sqrt(delta);
+  const denom = 2*A;
+  if(!Number.isFinite(sqrtD)) {
+    return {roots: [], text: [`Δ < 0 → sem raízes reais.`]};
+  }
+  const r1 = (-B + sqrtD) / denom;
+  const r2 = (-B - sqrtD) / denom;
+  return {
+    roots: [r1, r2],
+    text: [
+      `Solução pela fórmula: x = (-B ± √Δ) / (2A)`,
+      `x₁ = (-B + √Δ) / (2A) = (${ -B }) + ${ fmt(sqrtD) }  / ${ fmt(denom) } = ${ fmt(r1) }`,
+      `x₂ = (-B - √Δ) / (2A) = (${ -B }) - ${ fmt(sqrtD) }  / ${ fmt(denom) } = ${ fmt(r2) }`
+    ]
+  };
+}
+
+function passo_avaliacao_f(a,b,c,d,x){
+  // mostra o cálculo f(x) com termos parciais
+  const x3 = x*x*x, ax3 = a*x3;
+  const x2 = x*x, bx2 = b*x2;
+  const cx = c*x;
+  const y = ax3 + bx2 + cx + d;
+  const lines = [
+    `Avaliar f(${fmt(x)}):`,
+    `x³ = ${fmt(x3)} → a·x³ = ${a}·${fmt(x3)} = ${fmt(ax3)}`,
+    `x² = ${fmt(x2)} → b·x² = ${b}·${fmt(x2)} = ${fmt(bx2)}`,
+    `c·x = ${c}·${fmt(x)} = ${fmt(cx)}`,
+    `Somando: f(${fmt(x)}) = ${fmt(ax3)} + ${fmt(bx2)} + ${fmt(cx)} + ${fmt(d)} = ${fmt(y)}`
+  ];
+  return {x, y, lines};
+}
+
+/* ---------- resolver (principal) ---------- */
+function resolver(){
+  const a = parseFloat(document.getElementById('a').value);
+  const b = parseFloat(document.getElementById('b').value);
+  const c = parseFloat(document.getElementById('c').value);
+  const d = parseFloat(document.getElementById('d').value);
+  let x1 = parseFloat(document.getElementById('x1').value);
+  let x2 = parseFloat(document.getElementById('x2').value);
+  if(x2 < x1){ const t=x1; x1=x2; x2=t; }
+
+  const out = document.getElementById('out');
+  out.innerHTML = ""; // limpar
+
+  // validação simples
+  if(Math.abs(a) < 1e-12){
+    out.innerHTML = "<b>Erro:</b> a ≈ 0 — função não é cúbica. Implemente quadrática se necessário.";
+    return;
+  }
+
+  // passo 1: derivada
+  const deriv = passo_derivacao(a,b,c,d);
+
+  // passo 2: delta e raízes da derivada
+  const {A,B:BB,C} = df_coefs(a,b,c); // A,B,C para a derivada
+  const pd = passo_delta(A,BB,C);
+  const pr = passo_raizes(A,BB,pd.delta);
+
+  // filtrar apenas raízes reais e únicas
+  let criticos = uniqueNumbers(pr.roots);
+
+  // considerar apenas críticos dentro do intervalo
+  const criticos_intervalo = criticos.filter(x => x >= x1 - 1e-9 && x <= x2 + 1e-9);
+
+  // montar explicação passo a passo
+  let html = "";
+  html += `<div class="step"><strong>1)</strong> Derivada e expressão:</div>`;
+  html += `<div class="math">${deriv[0]}<br>${deriv[1]}</div>`;
+
+  html += `<div class="step"><strong>2)</strong> Cálculo do discriminante (Δ):</div>`;
+  html += `<div class="math">${pd.text.join('<br>')}</div>`;
+
+  if(pr.roots.length === 0){
+    html += `<div class="step"><strong>3)</strong> Como Δ &lt; 0, a derivada não tem raízes reais → não há pontos críticos reais.</div>`;
+  } else {
+    html += `<div class="step"><strong>3)</strong> Raízes da derivada (pontos críticos):</div>`;
+    html += `<div class="math">${pr.text.join('<br>')}</div>`;
+
+    html += `<div class="step"><strong>4)</strong> Pontos críticos dentro do intervalo [${fmt(x1)}, ${fmt(x2)}]: `;
+    html += criticos_intervalo.length ? criticos_intervalo.map(fmt).join(", ") : "nenhum";
+    html += `</div>`;
+
+    // análise pela segunda derivada (natureza)
+    html += `<div class="step"><strong>5)</strong> Classificação por f''(x):</div>`;
+    html += `<div class="math">f''(x) = derivative(f') = 6·a·x + 2·b = ${6*a}x + ${2*b}</div>`;
+    if(criticos_intervalo.length){
+      html += `<div style="margin-top:8px">`;
+      criticos_intervalo.forEach(x=>{
+        const segunda = d2f(a,b,x);
+        const tipo = segunda > 0 ? "mínimo local" : (segunda < 0 ? "máximo local" : "ponto de inflexão (f''=0)");
+        html += `<div class="small">- Em x = ${fmt(x)}: f''(${fmt(x)}) = ${fmt(segunda)} → <b>${tipo}</b></div>`;
+      });
+      html += `</div>`;
+    }
+  }
+
+  // Avaliar candidatos para extremos absolutos: extremos do intervalo + pontos críticos dentro
+  const candidatos = uniqueNumbers([x1, x2, ...criticos_intervalo]);
+  html += `<div class="step"><strong>6)</strong> Avaliar f em todos os candidatos (extremos + críticos no intervalo):</div>`;
+  let avals = [];
+  candidatos.forEach(x=>{
+    const passoEval = passo_avaliacao_f(a,b,c,d,x);
+    avals.push(passoEval);
+    html += `<div style="margin:8px 0; padding:10px; border-radius:8px; background:#fbfdff;">${passoEval.lines.join('<br>')}</div>`;
+  });
+
+  // determinar máximo e mínimo absoluto
+  let maxAbs = avals[0], minAbs = avals[0];
+  avals.forEach(p=>{
+    if(p.y > maxAbs.y) maxAbs = p;
+    if(p.y < minAbs.y) minAbs = p;
+  });
+
+  html += `<div class="step"><strong>7)</strong> Conclusão (máximo e mínimo absolutos no intervalo):</div>`;
+  html += `<div class="math"><b>Máximo absoluto</b>: x = ${fmt(maxAbs.x)}, f(x) = ${fmt(maxAbs.y)}</div>`;
+  html += `<div class="math" style="margin-top:6px"><b>Mínimo absoluto</b>: x = ${fmt(minAbs.x)}, f(x) = ${fmt(minAbs.y)}</div>`;
+
+  // Também listar pontos críticos locais (com f(x)) para ficar completo
+  if(criticos_intervalo.length){
+    html += `<div class="step" style="margin-top:10px"><strong>8)</strong> Resumo dos pontos críticos locais:</div>`;
+    html += `<ul>`;
+    criticos_intervalo.forEach(x=>{
+      const s = d2f(a,b,x);
+      const tipo = s>0 ? "mínimo local" : (s<0 ? "máximo local" : "ponto de inflexão");
+      const y = f(a,b,c,d,x);
+      html += `<li>x = ${fmt(x)} → f(x) = ${fmt(y)} → ${tipo} (f''=${fmt(s)})</li>`;
+    });
+    html += `</ul>`;
+  }
+
+  // Renderizar
+  out.innerHTML = html;
+}
+
+/* auto-run com valores iniciais */
+resolver();
+</script>
+</body>
+</html>
