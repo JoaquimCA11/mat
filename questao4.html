@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Questão 4 — Reta Tangente (Desenvolvimento Completo)</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      max-width: 900px;
+      margin: 28px auto;
+      padding: 22px;
+      background: #f6f8fb;
+      color: #111;
+      border-radius: 12px;
+    }
+    h1 { margin-top: 0; }
+    label { display:inline-block; margin:6px 10px; }
+    input[type=text], input[type=number] {
+      width:220px;
+      padding:6px;
+      border-radius:6px;
+      border:1px solid #ccc;
+    }
+    button {
+      padding:8px 14px;
+      border-radius:8px;
+      border:none;
+      background:#246ef2;
+      color:white;
+      cursor:pointer;
+      margin-top:10px;
+    }
+    button:hover { background:#1e54b7; }
+    .box {
+      background:white;
+      padding:18px;
+      border-radius:10px;
+      margin-top:18px;
+      box-shadow:0 6px 20px rgba(20,30,60,0.06);
+      font-size: 1.05em;
+    }
+    .step { margin-bottom: 16px; }
+    .math {
+      font-family: "Courier New", monospace;
+      background:#f0f2f5;
+      padding:6px 8px;
+      border-radius:6px;
+      display:block;
+      margin-top:4px;
+    }
+    canvas {
+      border:1px solid #ccc;
+      margin-top:20px;
+      border-radius:6px;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+</head>
+
+<body>
+
+<h1>Questão 4 — Reta Tangente (Desenvolvimento Completo)</h1>
+<p class="small">
+Insira a função <b>f(x)</b> e o ponto <b>x₀</b>. O sistema mostrará um desenvolvimento completo, como se fosse a resolução de um aluno para uma prova.
+</p>
+
+<div>
+  <label>f(x):
+    <input id="func" type="text" value="-x^2 - x + 2">
+  </label>
+
+  <label>x₀:
+    <input id="x0" type="number" value="-1" step="any">
+  </label>
+
+  <button onclick="resolver()">Resolver</button>
+</div>
+
+<div id="out" class="box"></div>
+<canvas id="graf" width="600" height="380"></canvas>
+
+<script>
+function resolver() {
+    const funcStr = document.getElementById("func").value;
+    const x0 = parseFloat(document.getElementById("x0").value);
+
+    const f = math.parse(funcStr).compile();
+    const dfNode = math.derivative(funcStr, "x");
+    const dfStr = dfNode.toString();
+    const df = dfNode.compile();
+
+    const y0 = f.evaluate({ x: x0 });
+    const m = df.evaluate({ x: x0 });
+    const x_inter = x0 - y0 / m;
+
+    document.getElementById("out").innerHTML = `
+      <div class="step">
+        <b>1) Função dada:</b>
+        <div class="math">f(x) = ${funcStr}</div>
+      </div>
+
+      <div class="step">
+        <b>2) Cálculo da derivada:</b>
+        <p>A derivada de f(x) é:</p>
+        <div class="math">f'(x) = ${dfStr}</div>
+      </div>
+
+      <div class="step">
+        <b>3) Cálculo do valor de f(x₀):</b>
+        <p>Substituindo x₀ = ${x0}:</p>
+        <div class="math">f(${x0}) = ${y0.toFixed(2)}</div>
+      </div>
+
+      <div class="step">
+        <b>4) Cálculo do coeficiente angular da tangente:</b>
+        <p>O valor da derivada no ponto é:</p>
+        <div class="math">f'(${x0}) = ${m.toFixed(2)}</div>
+      </div>
+
+      <div class="step">
+        <b>5) Equação da reta tangente:</b>
+        <p>Usamos a fórmula:</p>
+        <div class="math">y - f(x₀) = f'(x₀)(x - x₀)</div>
+        <p>Substituindo:</p>
+        <div class="math">
+          y - ${y0.toFixed(2)} = ${m.toFixed(2)}(x - ${x0})
+        </div>
+        <p>Equação final:</p>
+        <div class="math">y = ${m.toFixed(2)}(x - ${x0}) + ${y0.toFixed(2)}</div>
+      </div>
+
+      <div class="step">
+        <b>6) Interseção da tangente com o eixo-x:</b>
+        <p>No eixo x, temos y = 0:</p>
+        <div class="math">
+          0 = ${m.toFixed(2)}(x - ${x0}) + ${y0.toFixed(2)}
+        </div>
+        <p>Resolvendo:</p>
+        <div class="math">x = ${x_inter.toFixed(2)}</div>
+      </div>
+    `;
+
+    desenharGrafico(funcStr, x0, y0, m);
+}
+
+function desenharGrafico(funcStr, x0, y0, m) {
+    const f = math.parse(funcStr).compile();
+    const canvas = document.getElementById("graf");
+    const ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, 600, 380);
+
+    function xp(x){ return 300 + x * 40; }
+    function yp(y){ return 190 - y * 40; }
+
+    ctx.beginPath();
+    ctx.moveTo(0, yp(0));
+    ctx.lineTo(600, yp(0));
+    ctx.moveTo(xp(0), 0);
+    ctx.lineTo(xp(0), 380);
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.strokeStyle = "blue";
+    let first = true;
+    for (let x=-6; x<=6; x+=0.01) {
+        let y = f.evaluate({ x });
+        if (first) { ctx.moveTo(xp(x), yp(y)); first = false; }
+        else ctx.lineTo(xp(x), yp(y));
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.strokeStyle = "red";
+    first = true;
+    for (let x=-6; x<=6; x+=0.01) {
+        let y = m * (x - x0) + y0;
+        if (first) { ctx.moveTo(xp(x), yp(y)); first = false; }
+        else ctx.lineTo(xp(x), yp(y));
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(xp(x0), yp(y0), 5, 0, 2*Math.PI);
+    ctx.fillStyle = "green";
+    ctx.fill();
+}
+</script>
+
+</body>
+</html>
