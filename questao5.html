@@ -2,437 +2,279 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Derivadas — Resolução passo a passo</title>
+  <title>Derivador — Correção e Desenvolvimento</title>
 
   <!-- mathjs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
-  <!-- MathJax para renderização bonita -->
-  <script>
-    window.MathJax = {
-      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']]},
-      svg: {fontCache: 'global'}
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <!-- MathJax -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"></script>
 
   <style>
-    body{font-family: Inter, "Segoe UI", Roboto, Arial; max-width:1000px;margin:20px auto;padding:20px;background:#f6f8fb;border-radius:10px}
-    h1{margin-top:0}
-    label{display:block;margin-top:10px}
-    input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid #cfcfcf}
-    button{margin-top:10px;padding:10px 14px;border-radius:8px;border:none;background:#246ef2;color:white;cursor:pointer}
-    .box{background:white;padding:16px;border-radius:10px;margin-top:16px;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
-    pre{background:#f3f6fa;padding:10px;border-radius:6px;overflow:auto}
-    .steps{margin-top:12px}
-    .step{padding:8px;border-left:3px solid #246ef2;margin-bottom:10px;background:#fcfdff;border-radius:6px}
-    .math{font-family: "Latin Modern Math", "Times New Roman", serif; font-size:1.02em}
+    body{font-family: "Segoe UI", Roboto, Arial, sans-serif; max-width:980px;margin:24px auto;padding:20px;background:#f6f8fb;border-radius:10px}
+    input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid #d0d7df;font-size:1rem}
+    button{padding:10px 14px;border-radius:8px;border:none;background:#246ef2;color:#fff;cursor:pointer}
+    .box{background:#fff;padding:16px;border-radius:10px;margin-top:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .math{font-family: "Courier New", monospace;background:#fcfdff;padding:8px;border-radius:6px;display:block;margin:8px 0}
+    pre{background:#f0f2f5;padding:10px;border-radius:8px;overflow:auto}
     .row{display:flex;gap:12px;align-items:flex-start}
-    .col{flex:1}
-    table{width:100%;border-collapse:collapse}
-    td,th{padding:8px;border:1px solid #eef2f5;text-align:left;font-family:monospace}
-    .warn{color:#b00}
+    @media(max-width:600px){.row{flex-direction:column}}
+    .small{color:#444;font-size:0.95rem}
   </style>
 </head>
 <body>
-  <h1>Derivadas — calcule e gere o desenvolvimento</h1>
-  <p>Digite a função exatamente como aparece na prova. Aceita: raízes (√ ∛ ∜), expoentes visuais (x², x³), <code>sqrt()</code>, <code>root(...,n)</code>, <code>ln</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, frações e parênteses.</p>
+  <h1>Derivador — Correção e Desenvolvimento</h1>
+  <p class="small">Use entradas amigáveis: <code>sqrt(x)</code>, <code>cbrt(x)</code>, <code>x^3</code>, <code>sen(x)</code>, <code>ln(x)</code>, <code>e^(...)</code>.</p>
 
-  <label>Função f(x):</label>
-  <input id="fx" type="text" placeholder="Ex: 5/(6*x^3) - 8√(x^3)  ou  7/(4*x^4) - 6*x^(2/3)">
-
-  <button onclick="calcular()">Calcular derivada e gerar desenvolvimento</button>
+  <div class="row">
+    <div style="flex:1">
+      <label>Função f(x): <input id="inp" type="text" placeholder="Ex: 5/(6*x^3) - 8*sqrt(x^3)"></label>
+      <label>Opcional — avaliar f'(x) em: <input id="evalAt" type="text" placeholder="Ex: 2 (opcional)"></label>
+      <div style="margin-top:8px">
+        <button onclick="compute()">Calcular derivada (corrigido)</button>
+        <button onclick="insertExample('5/(6*x^3) - 8*sqrt(x^3)')">Ex A</button>
+        <button onclick="insertExample('2*cos(6*x)*sin(6*x)')">Ex B</button>
+        <button onclick="insertExample('4*ln(x)/(3*x^4)')">Ex C</button>
+        <button onclick="insertExample('e^(sqrt(x^2+1))')">Ex D</button>
+      </div>
+    </div>
+  </div>
 
   <div id="out" class="box"></div>
 
 <script>
-/* ---------------- util de normalização ----------------
-   - converte √, ∛, ∜ e expoentes superscritos para sintaxe math.js
-   - insere * quando necessário entre número/parenteses e variável (simples)
-------------------------------------------------------*/
-function normalizeInput(s){
-  if(!s) return s;
-  let r = s;
-
-  // ------------------------------
-  // 1) expoentes visuais: ² ³ ⁴ ⁵ etc
-  // ------------------------------
-  r = r.replace(/([A-Za-z0-9\)\]])²/g, '$1^2');
-  r = r.replace(/([A-Za-z0-9\)\]])³/g, '$1^3');
-  r = r.replace(/([A-Za-z0-9\)\]])⁴/g, '$1^4');
-  r = r.replace(/([A-Za-z0-9\)\]])⁵/g, '$1^5');
-
-  // ------------------------------
-  // 2) Raiz quadrada padrão √x ou √(x)
-  // ------------------------------
-  r = r.replace(/√\s*\(\s*([^\)]+)\s*\)/g, 'sqrt($1)');
-  r = r.replace(/√\s*([A-Za-z0-9]+)/g, 'sqrt($1)');
-
-  // ------------------------------
-  // 3) Raiz com expoente √^n(x)
-  // EXEMPLOS:
-  // √^4(x) → (x)^(1/4)
-  // √^3(x^2) → (x^2)^(1/3)
-  // ------------------------------
-  r = r.replace(/√\s*\^\s*([0-9]+)\s*\(\s*([^()]+)\s*\)/g,
-    (_, n, inside) => `(${inside})^(1/${n})`
-  );
-
-  // ------------------------------
-  // 4) Raiz com expoente em forma compacta: √^3 x
-  // ------------------------------
-  r = r.replace(/√\s*\^\s*([0-9]+)\s*([A-Za-z0-9]+)/g,
-    (_, n, inside) => `(${inside})^(1/${n})`
-  );
-
-  // ------------------------------
-  // 5) Raiz cúbica ∛x   ou ∛(x)
-  // ------------------------------
-  r = r.replace(/∛\s*\(\s*([^()]+)\s*\)/g, '($1)^(1/3)');
-  r = r.replace(/∛\s*([A-Za-z0-9]+)/g, '($1)^(1/3)');
-
-  // ------------------------------
-  // 6) Raiz quarta ∜x  ou ∜(x)
-  // ------------------------------
-  r = r.replace(/∜\s*\(\s*([^()]+)\s*\)/g, '($1)^(1/4)');
-  r = r.replace(/∜\s*([A-Za-z0-9]+)/g, '($1)^(1/4)');
-
-  // ------------------------------
-  // 7) root(expr, n)
-  // root(x^3,4) → (x^3)^(1/4)
-  // ------------------------------
-  r = r.replace(/root\(\s*([^,]+)\s*,\s*([0-9]+)\s*\)/gi,
-    (_, expr, n) => `(${expr})^(1/${n})`
-  );
-
-  // ------------------------------
-  // 8) Inserir multiplicação implícita
-  // 2x → 2*x
-  // x( → x*(
-  // )x → )*x
-  // ------------------------------
-  r = r.replace(/([0-9])\s*([A-Za-z\(])/g, '$1*$2');
-  r = r.replace(/([A-Za-z0-9\)])\s*\(/g, '$1*(');
-  r = r.replace(/\)\s*([A-Za-z0-9])/g, ')*$1');
-
-  // normalizar espaços e ^
-  r = r.replace(/\s*\^\s*/g, '^');
-  r = r.replace(/\s+/g, ' ');
-
-  return r.trim();
+/* ---------------- Normalização (amigável em celular) ---------------- */
+function normalizeInput(raw){
+  let s = String(raw || '');
+  s = s.replace(/,/g,'.');
+  s = s.replace(/\bsen\b/gi,'sin');
+  s = s.replace(/√\s*\(?([a-zA-Z0-9_\)\(]+)\)?/g,'sqrt($1)');
+  s = s.replace(/(\d)(\s*)([A-Za-z\(])/g,'$1*$3'); // 2x -> 2*x , 2sin -> 2*sin
+  s = s.replace(/([A-Za-z\)])(\s*)(\d)/g,'$1*$3');   // x2 -> x*2
+  s = s.replace(/\s+/g,' ');
+  return s.trim();
 }
 
-
-/* ---------------- pretty LaTeX from node ----------------
-   We will try: math.parse(...).toTex()
------------------------------------------------------*/
-function nodeToTex(node){
-  try {
-    return node.toTex({parenthesis: 'keep', implicit: 'show'});
-  } catch (e){
-    // fallback to string escaped
-    return node.toString();
-  }
+/* ---------------- Helper: toTeX safe ---------------- */
+function nodeToTexSafe(node){
+  try{ return node.toTex({parenthesis:'keep'}); } catch(e){ return node.toString(); }
 }
 
-/* ---------------- derivative builder: returns node and steps ----------------
-   We'll traverse mathjs nodes and build derivative node and a list of step objects.
-   Each step: {title, exprTex, explanation}
---------------------------------------------------------------------------*/
-function deriveNode(node, variable='x'){
+/* ---------------- Explanation builder ----------------
+   Strategy:
+   - Use mathjs to compute exact derivative for any node: math.derivative(node,'x')
+   - For explanation, at each node we:
+     * identify top-level rule (soma, produto, quociente, potencia, função)
+     * compute derivatives of children via math.derivative(child,'x')
+     * build LaTeX showing the rule and substitution with children's derivatives (as mathjs returned them)
+   This ensures correctness (mathjs computes) and provides readable steps.
+----------------------------------------------------------------- */
+
+function explain(node){
   const type = node.type;
 
-  // helpers to wrap nodes
-  const makeNode = (n) => n; // node already
-  const zero = math.parse('0');
-  const one = math.parse('1');
-
-  // return {dNode, steps: []}
   if(type === 'ConstantNode'){
-    return { dNode: zero, steps: [{
-      title: 'Derivada de constante',
-      exprNode: node,
-      explanation: `A derivada de uma constante é zero.`
-    }]};
+    return [{title: 'Constante', latex: `d/dx\\left(${nodeToTexSafe(node)}\\right)=0`}];
   }
-
   if(type === 'SymbolNode'){
-    const name = node.name;
-    if(name === variable){
-      return { dNode: one, steps: [{
-        title: `Derivada de ${variable}`,
-        exprNode: node,
-        explanation: `d/d${variable} ${variable} = 1.`
-      }]};
+    if(node.name === 'x'){
+      return [{title: 'Variável', latex: `d/dx\\left(x\\right)=1`}];
     } else {
-      return { dNode: zero, steps: [{
-        title: `Derivada de símbolo (constante relativa)`,
-        exprNode: node,
-        explanation: `A variável ${name} é tratada como constante em relação a ${variable}, portanto derivada = 0.`
-      }]};
+      return [{title: 'Constante simbólica', latex: `d/dx\\left(${nodeToTexSafe(node)}\\right)=0`}];
     }
   }
 
   if(type === 'OperatorNode'){
-    const op = node.op;
-    const fn = node.fn; // 'add', 'multiply', 'pow', ...
-    const args = node.args;
+    const fn = node.fn;
 
-    if(op === '+' || op === '-'){
-      // derivative sum/diff: derivative each term
-      let steps = [{ title: op === '+' ? 'Derivada da soma' : 'Derivada da diferença',
-                     exprNode: node,
-                     explanation: 'Derivada da soma/diferença = soma/diferença das derivadas.' }];
-      const dArgs = [];
-      args.forEach((a,i)=>{
-        const res = deriveNode(a, variable);
-        dArgs.push(res.dNode);
-        steps = steps.concat(res.steps);
+    if(fn === 'add' || fn === 'subtract'){
+      // derivative is sum/difference of derivatives
+      const children = node.args;
+      const childsExplanations = children.map(ch => {
+        const dch = math.derivative(ch,'x');
+        return {orig: nodeToTexSafe(ch), deriv: nodeToTexSafe(dch), node: ch};
       });
-      const expr = new math.OperatorNode(op, fn, dArgs);
-      return { dNode: expr, steps };
+      // build latex showing sum of derivatives
+      const left = nodeToTexSafe(node);
+      const right = childsExplanations.map(c=>`\\left(${c.deriv}\\right)`).join(fn==='add' ? ' + ' : ' - ');
+      const lines = [
+        `Regra da soma: d(u\\pm v)=u'\\pm v'`,
+        `u = ${nodeToTexSafe(children[0])}, v = ${nodeToTexSafe(children[1])} (se houver)`,
+        `Aplicando: d\\left(${left}\\right) = ${right}`
+      ];
+      return [{title:'Soma/ Subtração', latex: lines.join(' \\\\ ')}].concat(children.flatMap(ch=>explain(ch)));
     }
 
-    if(op === '*'){
-      // product rule for (a * b * c ...): generalize
-      // d(uv) = sum_i (u1*...*ui'...*un)
-      let steps = [{ title: 'Regra do produto',
-                     exprNode: node,
-                     explanation: 'Derivada do produto: somar derivada de cada fator multiplicada pelos demais.' }];
-      const n = args.length;
-      const sumTerms = [];
-      for(let i=0;i<n;i++){
-        // derivative of args[i]
-        const res_i = deriveNode(args[i], variable);
-        // multiply all other args
-        const others = [];
-        for(let j=0;j<n;j++){
-          if(i===j) others.push(res_i.dNode);
-          else others.push(args[j]);
-        }
-        // product node
-        const prod = others.length===1 ? others[0] : new math.OperatorNode('*','multiply', others.map(a=>a));
-        sumTerms.push(prod);
-        steps = steps.concat(res_i.steps);
-      }
-      // sum terms
-      const sum = sumTerms.length===1 ? sumTerms[0] : new math.OperatorNode('+','add', sumTerms);
-      return { dNode: sum, steps };
-    }
-
-    if(op === '/'){
-      // quotient rule: (u/v)' = (u'v - u v')/v^2
-      const u = args[0], v = args[1];
-      const du = deriveNode(u, variable);
-      const dv = deriveNode(v, variable);
-      const steps = [{
-        title: 'Regra do quociente',
-        exprNode: node,
-        explanation: 'd(u/v) = (u\'·v − u·v\') / v²'
-      }].concat(du.steps, dv.steps);
-
-      const term1 = new math.OperatorNode('*','multiply',[du.dNode, v]);
-      const term2 = new math.OperatorNode('*','multiply',[u, dv.dNode]);
-      const num = new math.OperatorNode('-','subtract',[term1, term2]);
-      const den = new math.OperatorNode('^','pow',[v, math.parse('2')]);
-      const frac = new math.OperatorNode('/','divide',[num, den]);
-      return { dNode: frac, steps };
-    }
-
-    if(op === '^'){
-      // u^v
-      const u = args[0], v = args[1];
-      // cases:
-      // 1) v is constant -> power rule: v*u^(v-1)*u'
-      if(v.type === 'ConstantNode'){
-        const exponent = parseFloat(v.value);
-        // u' * v * u^(v-1)
-        const du = deriveNode(u, variable);
-        const newExp = math.parse(String(exponent - 1));
-        const uPow = new math.OperatorNode('^','pow',[u, newExp]);
-        const coeff = math.parse(String(exponent));
-        const prod = new math.OperatorNode('*','multiply',[coeff, uPow, du.dNode]);
-        const steps = [{
-          title: 'Regra do poder (expoente constante)',
-          exprNode: node,
-          explanation: `Se v é constante, d(u^v)=v·u^{v-1}·u'.`
-        }].concat(du.steps);
-        return { dNode: prod, steps };
+    if(fn === 'multiply'){
+      // product rule (binary) or general product rule
+      const children = node.args;
+      if(children.length === 2){
+        const u = children[0], v = children[1];
+        const du = math.derivative(u,'x'), dv = math.derivative(v,'x');
+        const left = nodeToTexSafe(node);
+        const latex = [
+          `Regra do produto (2 fatores): d(uv)=u'v + u v'`,
+          `u = ${nodeToTexSafe(u)},\\quad v = ${nodeToTexSafe(v)}`,
+          `u' = ${nodeToTexSafe(du)},\\quad v' = ${nodeToTexSafe(dv)}`,
+          `Aplicando: d\\left(${left}\\right) = ${nodeToTexSafe(du)}\\cdot ${nodeToTexSafe(v)} + ${nodeToTexSafe(u)} \\cdot ${nodeToTexSafe(dv)}`
+        ];
+        return [{title:'Produto', latex: latex.join(' \\\\ ')}].concat(explain(u), explain(v));
       } else {
-        // general case: d(u^v) = u^v * (v' ln u + v * u' / u)
-        const du = deriveNode(u, variable);
-        const dv = deriveNode(v, variable);
-        const ln_u = new math.FunctionNode(new math.SymbolNode('log'), [u]); // math.log is natural log
-        const termA = new math.OperatorNode('*','multiply',[dv.dNode, ln_u]); // v' * ln u
-        const uprime_over_u = new math.OperatorNode('/','divide',[du.dNode, u]); // u'/u
-        const termB = new math.OperatorNode('*','multiply',[v, uprime_over_u]); // v * u'/u
-        const inside = new math.OperatorNode('+','add',[termA, termB]);
-        const full = new math.OperatorNode('*','multiply',[node, inside]); // u^v * (...)
-        const steps = [{
-          title: 'Derivada de potência geral',
-          exprNode: node,
-          explanation: `d(u^v)=u^v·(v'·ln(u) + v·u'/u).`
-        }].concat(du.steps, dv.steps);
-        return { dNode: full, steps };
+        // general product rule: sum over i of u_i' * product_{j!=i} u_j
+        const pieces = [];
+        const latexLines = ['Regra do produto (n fatores): soma dos termos com um fator derivado.'];
+        const terms = [];
+        children.forEach((ch,i)=>{
+          const dch = math.derivative(ch,'x');
+          const others = children.map((o,j)=> j===i ? nodeToTexSafe(dch) : nodeToTexSafe(o)).join(' \\cdot ');
+          terms.push(others);
+          latexLines.push(`Termo ${i+1}: ${others}`);
+        });
+        latexLines.push(`Aplicando: d\\left(${nodeToTexSafe(node)}\\right) = ${terms.join(' + ')}`);
+        return [{title:'Produto geral', latex: latexLines.join(' \\\\ ')}].concat(children.flatMap(ch=>explain(ch)));
       }
     }
 
-    // fallback
-    return { dNode: math.parse('0'), steps: [{title:'Operador não tratado', exprNode: node, explanation: 'Operador não tratado explicitamente.'}] };
+    if(fn === 'divide'){
+      const u = node.args[0], v = node.args[1];
+      const du = math.derivative(u,'x'), dv = math.derivative(v,'x');
+      const lines = [
+        `Regra do quociente: d(u/v) = (u'v - u v')/v^2`,
+        `u = ${nodeToTexSafe(u)},\\quad v = ${nodeToTexSafe(v)}`,
+        `u' = ${nodeToTexSafe(du)},\\quad v' = ${nodeToTexSafe(dv)}`,
+        `Aplicando: d\\left(${nodeToTexSafe(node)}\\right) = \\dfrac{${nodeToTexSafe(du)}\\cdot ${nodeToTexSafe(v)} - ${nodeToTexSafe(u)}\\cdot ${nodeToTexSafe(dv)}}{${nodeToTexSafe(v)}^{2}}`
+      ];
+      return [{title:'Quociente', latex: lines.join(' \\\\ ')}].concat(explain(u), explain(v));
+    }
+
+    if(node.op === '^'){
+      const base = node.args[0], exp = node.args[1];
+      // compute derivative with mathjs for accuracy
+      const dbase = math.derivative(base,'x'), dexp = math.derivative(exp,'x');
+      // decide rule text
+      if(exp.type === 'ConstantNode'){
+        const n = exp.value;
+        const lines = [
+          `Regra da potência: d(u^n) = n u^{n-1} u'`,
+          `u = ${nodeToTexSafe(base)},\\quad n = ${n}`,
+          `u' = ${nodeToTexSafe(dbase)}`,
+          `Aplicando: d\\left(${nodeToTexSafe(node)}\\right) = ${n} \\cdot ${nodeToTexSafe(base)}^{${n-1}} \\cdot ${nodeToTexSafe(dbase)}`
+        ];
+        return [{title:'Potência (expoente constante)', latex: lines.join(' \\\\ ')}].concat(explain(base));
+      } else {
+        // general case via u^v -> u^v ( v' ln u + v u'/u )
+        const lines = [
+          'Caso geral: d(u^v) = u^v ( v\\\' ln u + v u\\\'/u )',
+          `u = ${nodeToTexSafe(base)},\\quad v = ${nodeToTexSafe(exp)}`,
+          `u' = ${nodeToTexSafe(dbase)},\\quad v' = ${nodeToTexSafe(dexp)}`,
+          `Aplicando: d\\left(${nodeToTexSafe(node)}\\right) = ${nodeToTexSafe(node)} \\cdot \\left(${nodeToTexSafe(dexp)}\\cdot \\ln(${nodeToTexSafe(base)}) + ${nodeToTexSafe(exp)} \\cdot \\dfrac{${nodeToTexSafe(dbase)}}{${nodeToTexSafe(base)}}\\right)`
+        ];
+        return [{title:'Potência (caso geral)', latex: lines.join(' \\\\ ')}].concat(explain(base), explain(exp));
+      }
+    }
   }
 
   if(type === 'FunctionNode'){
-    // common functions: sin, cos, tan, exp, log, sqrt
-    const name = node.fn.name; // e.g., 'sin'
+    const name = node.name;
     const arg = node.args[0];
-    const dArg = deriveNode(arg, variable);
-    let dNode;
-    let explanation;
-    if(name === 'sin'){
-      // d/dx sin(u) = cos(u)*u'
-      dNode = new math.OperatorNode('*','multiply',[ new math.FunctionNode(new math.SymbolNode('cos'), [arg]), dArg.dNode ]);
-      explanation = `d(sin(u))/dx = cos(u)·u' (regra da cadeia)`;
-    } else if(name === 'cos'){
-      // d/dx cos(u) = -sin(u)*u'
-      const minus = new math.UnaryMinusNode(new math.FunctionNode(new math.SymbolNode('sin'), [arg]));
-      dNode = new math.OperatorNode('*','multiply',[ minus, dArg.dNode ]);
-      explanation = `d(cos(u))/dx = -sin(u)·u'`;
-    } else if(name === 'tan'){
-      // d/dx tan(u) = sec^2(u) * u' ; mathjs has sec? use 1/cos^2
-      const cosu = new math.FunctionNode(new math.SymbolNode('cos'), [arg]);
-      const cosu2 = new math.OperatorNode('^','pow',[cosu, math.parse('2')]);
-      const sec2 = new math.OperatorNode('/','divide',[ math.parse('1'), cosu2 ]);
-      dNode = new math.OperatorNode('*','multiply',[ sec2, dArg.dNode ]);
-      explanation = `d(tan(u))/dx = sec^2(u)·u' = (1/cos^2(u))·u'`;
-    } else if(name === 'exp'){
-      dNode = new math.OperatorNode('*','multiply',[ new math.FunctionNode(new math.SymbolNode('exp'), [arg]), dArg.dNode ]);
-      explanation = `d(e^{u})/dx = e^{u}·u'`;
-    } else if(name === 'log' || name === 'ln'){
-      // mathjs uses 'log' for natural log
-      dNode = new math.OperatorNode('*','multiply',[ new math.OperatorNode('/','divide',[math.parse('1'), arg]), dArg.dNode ]);
-      explanation = `d(ln(u))/dx = u'/u`;
-    } else if(name === 'sqrt'){
-      // sqrt(u) = u^(1/2): derivative = (1/(2 sqrt(u))) * u'
-      const sqrtNode = new math.FunctionNode(new math.SymbolNode('sqrt'), [arg]);
-      const denom = new math.OperatorNode('*','multiply',[ math.parse('2'), sqrtNode ]);
-      dNode = new math.OperatorNode('*','multiply',[ new math.OperatorNode('/','divide',[math.parse('1'), denom]), dArg.dNode ]);
-      explanation = `d(√u)/dx = (1/(2√u))·u'`;
+    const darg = math.derivative(arg,'x');
+    // pick known outer derivative
+    const mapping = {
+      sin: ['cos(x)','d(sin(u))=cos(u) u\''],
+      cos: ['-sin(x)','d(cos(u))=-sin(u) u\''],
+      tan: ['sec(x)^2','d(tan(u))=sec^2(u) u\''],
+      ln: ['1/x','d(ln(u))=u\'/u'],
+      log: ['1/x','d(log(u))=u\'/u'],
+      exp: ['exp(x)','d(exp(u))=exp(u) u\''],
+      sqrt: ['1/(2 sqrt(x))','d(sqrt(u))=u\'/(2 sqrt(u))'],
+      cbrt: ['1/(3 u^(2/3))','d(cbrt(u))=u\'/(3 u^{2/3})'],
+      abs: ['sign(x)','d(|u|)=u\'/|u| (u≠0)']
+    };
+    const left = nodeToTexSafe(node);
+    if(name in mapping){
+      const lines = [
+        `Regra da cadeia para ${name}: ${mapping[name][1]}`,
+        `u = ${nodeToTexSafe(arg)}`,
+        `u' = ${nodeToTexSafe(darg)}`,
+        `Aplicando: d\\left(${left}\\right) = ${mapping[name][0].replace(/x/g, nodeToTexSafe(arg))} \\cdot ${nodeToTexSafe(darg)}`
+      ];
+      return [{title:`Função ${name}`, latex: lines.join(' \\\\ ')}].concat(explain(arg));
     } else {
-      // generic chain rule: f'(u) * u' (we try to use math.diff if available)
-      // not all functions handled, fallback to symbolic derivative via mathjs differentiate string
-      try {
-        // attempt to use mathjs derivative on function name with argument symbol 'x' replaced
-        // fallback to chain rule representation
-        const funcStr = node.toString();
-        const dStr = math.derivative(funcStr, variable).toString();
-        const parsed = math.parse(dStr);
-        dNode = parsed;
-        explanation = `Derivada simbólica aplicada: d(${funcStr})/dx = ${dStr}`;
-      } catch(e){
-        dNode = math.parse('0');
-        explanation = `Função ${name} não reconhecida — retorno 0 por segurança.`;
-      }
+      // fallback: show derivative computed by mathjs
+      return [{title:'Função (fallback)', latex: `d\\left(${left}\\right) = ${nodeToTexSafe(math.derivative(node,'x'))}`}].concat(explain(arg));
     }
-    return { dNode, steps: [{ title: `Regra da cadeia para ${name}`, exprNode: node, explanation }].concat(dArg.steps) };
   }
 
-  // fallback default
-  return { dNode: math.parse('0'), steps: [{title: 'Caso não tratado', exprNode: node, explanation: 'Tipo de nó não tratado'}] };
-}
-
-/* ------------------ simplificação e render -----------------*/
-function calcular(){
-  // wrapper used by UI
-}
-
-function calcularDerivadaComPassos(rawInput){
-  const out = { error: null };
-  try {
-    const normalized = normalizeInput(rawInput);
-    // parse
-    const tree = math.parse(normalized);
-
-    // derive with steps
-    const res = deriveNode(tree, 'x'); // returns dNode and steps
-
-    // simplify derivative expression
-    const simplified = math.simplify(res.dNode);
-
-    // prepare LaTeX
-    const fTex = nodeToTex(tree);
-    const dTex = nodeToTex(simplified);
-    // also original derivative (unsimplified) to show steps maybe
-    const dRawTex = nodeToTex(res.dNode);
-
-    out.tree = tree;
-    out.steps = res.steps;
-    out.dNode = res.dNode;
-    out.simplified = simplified;
-    out.tex = { fTex, dTex, dRawTex };
-    return out;
+  // fallback generic
+  try{
+    return [{title:'fallback', latex: `d(${nodeToTexSafe(node)}) = ${nodeToTexSafe(math.derivative(node,'x'))}`}];
   } catch(e){
-    return { error: e.toString() };
+    return [{title:'erro', latex: `Não foi possível explicar ${nodeToTexSafe(node)}`}];
   }
 }
 
-/* --------------- UI function ------------------ */
-function calcular(){
-  const raw = document.getElementById('fx').value.trim();
-  const outDiv = document.getElementById('out');
-  outDiv.innerHTML = `<p>Processando...</p>`;
+/* ---------------- Compute UI ---------------- */
+function compute(){
+  const raw = document.getElementById('inp').value;
+  const at = document.getElementById('evalAt').value.trim();
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  if(!raw){ out.innerHTML = '<b>Digite uma função.</b>'; return; }
 
-  if(!raw){
-    outDiv.innerHTML = `<p class="warn">Digite a função f(x).</p>`;
-    return;
+  const norm = normalizeInput(raw);
+
+  let parsed;
+  try{ parsed = math.parse(norm); }
+  catch(e){ out.innerHTML = '<b>Erro ao analisar a expressão:</b><br>' + e; return; }
+
+  // derivative (mathjs accurate)
+  let deriv, deriv_simp;
+  try{
+    deriv = math.derivative(parsed,'x');
+    deriv_simp = math.simplify(deriv);
+  } catch(e){
+    out.innerHTML = '<b>Erro ao derivar:</b><br>' + e; return;
   }
 
-  const res = calcularDerivadaComPassos(raw);
-  if(res.error){
-    outDiv.innerHTML = `<p class="warn">Erro ao processar expressão: ${res.error}</p>`;
-    return;
-  }
+  // build explanations
+  const expl = explain(parsed); // array of steps (may include recursive pieces)
 
-  // Build HTML
+  // render
   let html = '';
-  html += `<div class="row"><div class="col"><h3>Função (entrada)</h3><div class="math">\\(${res.tex.fTex}\\)</div></div>`;
-  html += `<div class="col"><h3>Derivada (simplificada)</h3><div class="math">\\(${res.tex.dTex}\\)</div></div></div>`;
+  html += '<h3>Função informada</h3>';
+  html += `<div class="math">$$f(x)=${nodeToTexSafe(parsed)}$$</div>`;
 
-  // Steps: show sequence with explanations and latex of subexpressions
-  html += `<div class="steps"><h3>Desenvolvimento passo a passo</h3>`;
+  html += '<h3>Derivada (exata)</h3>';
+  html += `<div class="math">$$f\\\'(x) = ${nodeToTexSafe(deriv)}$$</div>`;
 
-  // We'll try to collapse similar steps: for each step object, show title, expression (tex) and explanation
-  res.steps.forEach((st, idx)=>{
-    let exprTex = '';
-    try {
-      exprTex = st.exprNode ? nodeToTex(st.exprNode) : '';
-    } catch(e){ exprTex = st.exprNode ? st.exprNode.toString() : ''; }
-    html += `<div class="step">`;
-    html += `<b>${idx+1}. ${st.title}</b><br>`;
-    if(exprTex) html += `<div class="math">\\(${exprTex}\\)</div>`;
-    html += `<div style="margin-top:6px">${st.explanation}</div>`;
-    html += `</div>`;
+  html += '<h3>Derivada (simplificada)</h3>';
+  html += `<div class="math">$$f\\\'(x) = ${nodeToTexSafe(deriv_simp)}$$</div>`;
+
+  html += '<h3>Desenvolvimento (passos explicados)</h3>';
+  expl.forEach((e,i)=>{
+    html += `<div style="margin-bottom:12px"><b>Passo ${i+1} — ${e.title}:</b><div class="math">$$${e.latex}$$</div></div>`;
   });
 
-  html += `</div>`; // end steps
+  // evaluation if requested
+  if(at !== ''){
+    try{
+      const xval = parseFloat(at);
+      const val = deriv_simp.evaluate({x:xval});
+      html += '<h3>Avaliação</h3>';
+      html += `<div class="math">$$f\\\'(${xval}) = ${math.format(val, {precision:14})}$$</div>`;
+    }catch(e){
+      html += `<div class="small">Erro ao avaliar em x=${at}: ${e}</div>`;
+    }
+  }
 
-  // show unsimplified derivative (useful)
-  html += `<div style="margin-top:12px"><h3>Derivada antes da simplificação</h3><div class="math">\\(${res.tex.dRawTex}\\)</div></div>`;
+  html += '<h3>LaTeX para copiar</h3>';
+  html += `<pre>f(x) = ${parsed.toTex()}\n\nf'(x) = ${deriv_simp.toTex()}</pre>`;
 
-  // show final simplified explicit expression in plain text and latex
-  html += `<div style="margin-top:12px"><h3>Resultado final (LaTeX e forma algébrica)</h3>`;
-  html += `<p class="math">\\(${res.tex.dTex}\\)</p>`;
-  html += `<pre>f'(x) = ${res.simplified.toString()}</pre>`;
-  html += `</div>`;
-
-  outDiv.innerHTML = html;
-
-  // typeset MathJax
+  out.innerHTML = html;
   MathJax.typesetPromise();
 }
 
-/* bind Enter */
-document.getElementById('fx').addEventListener('keydown', function(e){
-  if(e.key === 'Enter') calcular();
-});
+/* quick inserts */
+function insertExample(s){ document.getElementById('inp').value = s; }
 </script>
 </body>
 </html>

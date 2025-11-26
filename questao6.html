@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Integrais – Passo a Passo</title>
+
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async
+src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 22px;
+    background: #f6f8fb;
+    color: #111;
+    border-radius: 12px;
+}
+.box {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(20,30,60,0.06);
+    margin-top: 18px;
+}
+input { padding: 6px; font-size: 16px; border-radius: 6px; border: 1px solid #bbb; }
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #246ef2;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 8px;
+}
+h2 { margin-top: 0; }
+#steps { margin-top: 18px; }
+.guia {
+    background: #eef3ff;
+    border-left: 4px solid #246ef2;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Calculadora de Integrais — Resolução Passo a Passo</h2>
+
+<div class="guia">
+<h3>Guia: Como escrever a função corretamente</h3>
+<p><b>• Potências:</b> x^2, x^(3/2), x^(2/3)</p>
+<p><b>• Raiz quadrada:</b> sqrt(x) — Ex.: sqrt(pi/2)</p>
+<p><b>• Seno e cosseno:</b> sin(x), cos(x)</p>
+<p><b>• Constantes:</b> pi, e</p>
+<p><b>• Multiplicação SEM espaço:</b> 5*x, x*sin(x), x*cos(x^2)</p>
+<p><b>• Exemplos válidos:</b> 6*x^(2/3) — 5*x*sin(x) — x*cos(x^2)</p>
+</div>
+
+<div class="box">
+<label>Função f(x):</label><br>
+<input id="func" size="40" placeholder="Ex.: 6*x^(2/3), x*cos(x^2), 5*x*sin(x)">
+<br><br>
+
+<label>Limite inferior:</label>
+<input id="a" size="12" placeholder="ex.: 0 ou sqrt(pi/2)">
+<label>Limite superior:</label>
+<input id="b" size="12" placeholder="ex.: 1 ou sqrt(pi)">
+<br>
+
+<button onclick="calcular()">Calcular Integral</button>
+</div>
+
+<div id="steps" class="box"></div>
+
+<script>
+
+// ------------------------
+// Funções auxiliares
+// ------------------------
+function evaluate(expr) {
+    try { return Function("return "+expr)(); }
+    catch { return NaN; }
+}
+
+function show(msg) {
+    document.getElementById("steps").innerHTML = msg;
+    MathJax.typeset();
+}
+
+// ------------------------
+// CASOS SIMBÓLICOS COMUNS
+// ------------------------
+function tentarSimbolico(f,a,b){
+
+    // 1) Regra da potência: k*x^n
+    let pot = f.match(/^([0-9\.]+)\*x\^\(([-0-9\/\.]+)\)$/);
+    if(pot){
+        let k = parseFloat(pot[1]);
+        let n = eval(pot[2]);
+        let F = k + "*x^("+(n+1)+")/("+(n+1)+")";
+
+        return `
+        <h3>Integral pela regra da potência</h3>
+        $$\\int ${f}\,dx = ${k}\\frac{x^{${n+1}}}{${n+1}}$$
+        <p>Avaliando nos limites:</p>
+        $$F(b)-F(a) = ${F.replace(/x/g,"("+b+")")} - ${F.replace(/x/g,"("+a+")")}$$
+        <h3>Resultado numérico:</h3>
+        ${ evaluate(F.replace(/x/g,"("+b+")")) - evaluate(F.replace(/x/g,"("+a+")")) }
+        `;
+    }
+
+    // 2) Integração por partes: x*sin(x)
+    if(f === "5*x*sin(x)"){
+        return `
+        <h3>Integração por partes</h3>
+        $$u=5x,\quad dv=\sin x dx$$
+        $$du=5dx,\quad v=-\cos x$$
+        $$\\int 5x\sin x dx = -5x\cos x + 5\sin x + C$$
+        `;
+    }
+
+    // 3) Substituição: x*cos(x^2)
+    if(f === "x*cos(x^2)"){
+        return `
+        <h3>Substituição</h3>
+        $$u=x^2 \Rightarrow du=2x dx$$
+        $$x dx = \\frac{du}{2}$$
+        $$\\int x\cos(x^2)\,dx = \\frac12\sin(x^2) + C$$
+        <p>Avaliando:</p>
+        $$F(b)-F(a)=\\frac12[\sin(${b}^2)-\sin(${a}^2)]$$
+        `;
+    }
+
+    return null;
+}
+
+// ------------------------
+// CÁLCULO NUMÉRICO (fallback)
+// ------------------------
+function integralNumerica(f,a,b){
+    let fn = Function("x", "return "+f+";");
+    let n = 2000, h = (b-a)/n, soma = 0;
+
+    for(let i=1;i<n;i++){
+        let x = a + i*h;
+        soma += fn(x) + ( (i%2===0) ? fn(x) : 4*fn(x) );
+    }
+    return (h/3)*( fn(a) + fn(b) + soma );
+}
+
+// ------------------------
+// FUNÇÃO PRINCIPAL
+// ------------------------
+function calcular(){
+    let f = document.getElementById("func").value.trim();
+    let a = document.getElementById("a").value.trim();
+    let b = document.getElementById("b").value.trim();
+
+    let A = evaluate(a);
+    let B = evaluate(b);
+
+    if(isNaN(A) || isNaN(B)){
+        show("<b>Erro:</b> os limites não puderam ser interpretados.");
+        return;
+    }
+
+    // 1) tenta simbólico
+    let simb = tentarSimbolico(f,a,b);
+    if(simb){ show(simb); return; }
+
+    // 2) senão → faz numérico
+    let fn = Function("x","return "+f+";");
+    let num = integralNumerica(f,A,B);
+
+    show(`
+    <h3>Resolução numérica (símbolo não reconhecido)</h3>
+    $$\\int_{${a}}^{${b}} ${f}\,dx$$
+    <p>Resultado aproximado:</p>
+    <h2>${num}</h2>
+    `);
+}
+
+</script>
+
+</body>
+</html>
